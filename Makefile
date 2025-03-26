@@ -41,6 +41,7 @@ endif
 
 # installation directory
 PREFIX?=/usr/local
+LIBDIR?=lib
 
 # use the gprof profiler
 #CONFIG_PROFILE=y
@@ -193,7 +194,8 @@ CONFIG_SHARED_LIBS=y # building shared libraries is supported
 endif
 endif
 
-PROGS=qjs$(EXE) qjsc$(EXE) run-test262
+PROGS+=libquickjs.so quickjs.pc
+PROGS+=qjs$(EXE) qjs-shared$(EXE) qjsc$(EXE) run-test262
 ifneq ($(CROSS_PREFIX),)
 QJSC_CC=gcc
 QJSC=./host-qjsc
@@ -284,6 +286,15 @@ else
 LTOEXT=
 endif
 
+quickjs.pc: quickjs.pc.in
+	cp $^ $@
+	sed -i s,@prefix@,$(PREFIX),g $@
+	sed -i s,@libdir@,$(PREFIX)/$(LIBDIR),g $@
+	sed -i s,@version@,$(shell cat VERSION),g $@
+
+libquickjs.so: $(patsubst %.o, %.pic.o, $(QJS_LIB_OBJS))
+	$(CC) $(LDFLAGS) $(LDEXPORT) -shared -o $@ $^ 
+
 libquickjs$(LTOEXT).a: $(QJS_LIB_OBJS)
 	$(AR) rcs $@ $^
 
@@ -356,13 +367,15 @@ install: all
 	mkdir -p "$(DESTDIR)$(PREFIX)/bin"
 	$(STRIP) qjs$(EXE) qjsc$(EXE)
 	install -m755 qjs$(EXE) qjsc$(EXE) "$(DESTDIR)$(PREFIX)/bin"
-	mkdir -p "$(DESTDIR)$(PREFIX)/lib/quickjs"
-	install -m644 libquickjs.a "$(DESTDIR)$(PREFIX)/lib/quickjs"
+	# install -m644 libquickjs.a "$(DESTDIR)$(PREFIX)/lib/quickjs"
+	install -m777 libquickjs.so "$(DESTDIR)$(PREFIX)/$(LIBDIR)"
 ifdef CONFIG_LTO
 	install -m644 libquickjs.lto.a "$(DESTDIR)$(PREFIX)/lib/quickjs"
 endif
 	mkdir -p "$(DESTDIR)$(PREFIX)/include/quickjs"
 	install -m644 quickjs.h quickjs-libc.h "$(DESTDIR)$(PREFIX)/include/quickjs"
+	mkdir -p "$(DESTDIR)$(PREFIX)/$(LIBDIR)/pkgconfig"
+	install -m644 quickjs.pc "$(DESTDIR)$(PREFIX)/$(LIBDIR)/pkgconfig"
 
 ###############################################################################
 # examples
